@@ -73,6 +73,7 @@ def download(url, file_path, session, headers, options):
     #      but use filenames too to make attachments savable
     # TODO determine mime type of binary
     #      and set filename extension appropriately
+    # TODO remove site from filename
     # open in binary mode
     response = session.get(url)
     full_path = file_path + '.' + filename_extension(response.headers)
