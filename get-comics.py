@@ -1,19 +1,15 @@
 #!/usr/bin/env python3
-import json
-
-from bs4 import BeautifulSoup
-from datetime import date
-from email.message import EmailMessage
 import argparse
 import imghdr
+import json
 import os
-import random
 import re
-import requests_html
 import smtplib
 import tempfile
-import urllib
+from datetime import date
+from email.message import EmailMessage
 
+import requests_html
 
 mimesplit = re.compile(r'image/(\w+).*')
 converter = {'gif': 'gif',
