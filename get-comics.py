@@ -11,44 +11,44 @@ from email.message import EmailMessage
 
 import requests_html
 
-mimesplit = re.compile(r'image/(\w+).*')
+mime_split = re.compile(r'image/(\w+).*')
 converter = {'gif': 'gif',
              'jpeg': 'jpg'
              }
 
 
-def get_comics_url(site, comic, slashed_date, hyphenated_date, session, headers):
-    if site == 'gocomics':
-        return get_go_comics_url(comic, slashed_date, hyphenated_date, session, headers)
-    if site == 'dilbert':
-        return get_dilbert_url(comic, slashed_date, hyphenated_date, session, headers)
+def get_comics_url(site0, comic, slashed_date0, hyphenated_date0, session0, headers0):
+    if site0 == 'gocomics':
+        return get_go_comics_url(comic, slashed_date0, hyphenated_date0, session0)
+    if site0 == 'dilbert':
+        return get_dilbert_url(comic, hyphenated_date0, session0)
     if options.verbose:
-        print('invalid site:', site)
+        print('invalid site:', site0)
     return None, None, None
 
 
-def get_go_comics_url(comic, slashed_date, hyphenated_date, session, headers):
+def get_go_comics_url(comic, slashed_date0, hyphenated_date0, session0):
     # 'https://www.gocomics.com/adamathome/2020/10/08'
-    page_url = 'https://www.gocomics.com/%s/%s' % (comic, slashed_date)
-    page_html = session.get(page_url).html
+    page_url = 'https://www.gocomics.com/%s/%s' % (comic, slashed_date0)
+    page_html = session0.get(page_url).html
     try:
         div_comic = page_html.find('div.comic')[0]
         comic_url = div_comic.attrs['data-image']
-        filename = 'gocomics-%s-%s' % (comic, hyphenated_date)
+        filename = 'gocomics-%s-%s' % (comic, hyphenated_date0)
     except IndexError as e:
         comic_url = None
         filename = None
     return page_url, comic_url, filename
 
 
-def get_dilbert_url(comic, slashed_date, hyphenated_date, session, headers):
+def get_dilbert_url(comic, hyphenated_date0, session0):
     # https://dilbert.com/strip/2020-12-21
-    page_url = 'https://dilbert.com/strip/%s' % hyphenated_date 
-    page_html = session.get(page_url).html
+    page_url = 'https://dilbert.com/strip/%s' % hyphenated_date0
+    page_html = session0.get(page_url).html
     try:
         img_comic = page_html.find('img.img-responsive')[0]
         comic_url = img_comic.attrs['src']
-        filename = 'dilbert-%s-%s' % (comic, hyphenated_date)
+        filename = 'dilbert-%s-%s' % (comic, hyphenated_date0)
     except IndexError as e:
         comic_url = None
         filename = None
@@ -58,7 +58,7 @@ def get_dilbert_url(comic, slashed_date, hyphenated_date, session, headers):
 def filename_extension(http_headers):
     try:
         mimetype = http_headers['Content-Type']
-        image_type = mimesplit.match(mimetype)
+        image_type = mime_split.match(mimetype)
         if image_type:
             image_str = image_type.group(1)
             result = converter.get(image_str, image_str)
@@ -86,12 +86,12 @@ def download(url, file_path, session, headers, options):
     return full_path
 
 
-def send_mail(links_files, options, date):
+def send_mail(links_files, date_string):
     mail = EmailMessage()
     mail.set_charset('utf-8')
-    mail['To'] = ', '.join(options.mail)
-    mail['From'] = 'potsmaster@ducksburg.com'
-    mail['Subject'] = 'Comics %s' % date
+    mail['To'] = ','.join(config['mail_to'])
+    mail['From'] = config['mail_from']
+    mail['Subject'] = f'Comics {date_string}'
 
     text = []
     delenda = []
@@ -129,11 +129,6 @@ def send_mail(links_files, options, date):
 oparser = argparse.ArgumentParser(description="Comic fetcher",
                                   formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-oparser.add_argument("-m", dest="mail",
-                     action='append',
-                     metavar='USER@EXAMPLE.COM',
-                     help="send mail to this address")
-
 oparser.add_argument('-c', dest='config_file',
                      required=True,
                      metavar='JSON',
@@ -149,15 +144,14 @@ options = oparser.parse_args()
 with open(options.config_file, 'r') as f:
     config = json.load(f)
 
-# TODO get comics from config
 # TODO fix email to and from
 # TODO option for date
-# TODO config file for list of comics
 
 user_agent = requests_html.user_agent()
 headers = {'user-agent': user_agent}
 if options.verbose:
     print('request headers:', headers)
+# TODO use this
 
 session = requests_html.HTMLSession()
 today = date.today()
@@ -182,6 +176,4 @@ for comic_name, site in config['comics']:
     else:
         links_files[page_url] = None
 
-        
-if options.mail:
-    send_mail(links_files, options, hyphenated_date)
+send_mail(links_files, hyphenated_date)
