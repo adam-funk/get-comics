@@ -73,6 +73,8 @@ def filename_extension(http_headers):
 
 # https://stackoverflow.com/questions/7243750/download-file-from-web-in-python-3
 def download(url, file_path, session, headers, options):
+    # TODO use BytesIO instead of tmp files
+    #      but use filenames too to make attachments savable
     # TODO determine mime type of binary
     #      and set filename extension appropriately
     # open in binary mode
@@ -150,8 +152,8 @@ options = oparser.parse_args()
 with open(options.config_file, 'r') as f:
     config = json.load(f)
 
-# get comics from config
-# fix email to and from
+# TODO get comics from config
+# TODO fix email to and from
 # TODO option for date
 # TODO config file for list of comics
 
