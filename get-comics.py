@@ -167,20 +167,19 @@ out_dir = tempfile.mkdtemp(prefix=dir_prefix)
 
 links_files = dict()
 
-for site, comic_list in comics.items():
-    for comic in comic_list:
-        if options.verbose:
-            print(site, comic)
-        page_url, comic_url, filename = get_comics_url(site, comic, slashed_date,
-                                                       hyphenated_date, session, headers)
-        if options.verbose:
-            print(page_url, comic_url, sep='\n')
-        if comic_url:
-            file_path = os.path.join(out_dir, filename)
-            full_path = download(comic_url, file_path, session, headers, options)
-            links_files[page_url] = (comic_url, full_path)
-        else:
-            links_files[page_url] = None
+for comic_name, site in config['comics']:
+    if options.verbose:
+        print(comic_name, site)
+    page_url, comic_url, filename = get_comics_url(site, comic_name, slashed_date,
+                                                   hyphenated_date, session, headers)
+    if options.verbose:
+        print(page_url, comic_url, sep='\n')
+    if comic_url:
+        file_path = os.path.join(out_dir, filename)
+        full_path = download(comic_url, file_path, session, headers, options)
+        links_files[page_url] = (comic_url, full_path)
+    else:
+        links_files[page_url] = None
 
         
 if options.mail:
