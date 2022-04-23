@@ -1,0 +1,16 @@
+{
+  "comics": [
+    [
+      "calvinandhobbes",
+      "gocomics"
+    ],
+    [
+      "dilbert",
+      "dilbert"
+    ]
+  ],
+  "mail_to": [
+    "me@example.com"
+  ],
+  "mail_from": "equipment@example.com"
+}
