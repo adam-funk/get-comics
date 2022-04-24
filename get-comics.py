@@ -17,15 +17,24 @@ converter = {'gif': 'gif',
              }
 
 
-def get_comic(site0, comic, slashed_date0, hyphenated_date0, session0):
+def get_comic(site0, comic, specified_date, session0):
+    hyphenated_date = specified_date.strftime('%Y-%m-%d')
+    slashed_date = specified_date.strftime('%Y/%m/%d')
+    filename_base = f'{comic}-{hyphenated_date}'
+
     if site0 == 'gocomics':
-        page_url0, comic_url0, filename_base, message0 = get_go_comics_url(comic, slashed_date0, hyphenated_date0, session0)
+        page_url0, comic_url0, message0 = get_go_comics_data(comic, slashed_date,
+                                                             session0)
     elif site0 == 'dilbert':
-        page_url0, comic_url0, filename_base, message0 = get_dilbert_url(comic, hyphenated_date0, session0)
+        page_url0, comic_url0, message0 = get_dilbert_data(comic, hyphenated_date,
+                                                           session0)
+    elif site0 == 'kingdom':
+        page_url0, comic_url0, message0 = get_kingdom_data(comic, hyphenated_date,
+                                                           session0)
     else:
         if options.verbose:
             print(f'invalid site: {site0}')
-        page_url0, comic_url0, filename_base = None, None, None
+        page_url0, comic_url0 = None, None
         message0 = f'invalid site: {site0}'
     if options.verbose:
         print(page_url0, comic_url0, sep='\n')
@@ -35,36 +44,46 @@ def get_comic(site0, comic, slashed_date0, hyphenated_date0, session0):
     return None, None, None, message0
 
 
-def get_go_comics_url(comic, slashed_date0, hyphenated_date0, session0):
+def get_go_comics_data(comic, slashed_date0, session0):
     # 'https://www.gocomics.com/adamathome/2020/10/08'
     page_url0 = f'https://www.gocomics.com/{comic}/{slashed_date0}'
     page_html = session0.get(page_url0).html
     try:
         div_comic = page_html.find('div.comic')[0]
         comic_url0 = div_comic.attrs['data-image']
-        filename_base = f'{comic}-{hyphenated_date0}'
         message0 = ''
     except IndexError as e:
         comic_url0 = None
-        filename_base = None
         message0 = f'{page_url0} {str(e)}'
-    return page_url0, comic_url0, filename_base, message0
+    return page_url0, comic_url0, message0
 
 
-def get_dilbert_url(comic, hyphenated_date0, session0):
+def get_dilbert_data(comic, hyphenated_date0, session0):
     # https://dilbert.com/strip/2020-12-21
     page_url0 = f'https://dilbert.com/strip/{hyphenated_date0}'
     page_html = session0.get(page_url0).html
     try:
         img_comic = page_html.find('img.img-responsive')[0]
         comic_url0 = img_comic.attrs['src']
-        filename_base = f'{comic}-{hyphenated_date0}'
         message0 = ''
     except IndexError as e:
         comic_url0 = None
-        filename_base = None
         message0 = f'{page_url0} {str(e)}'
-    return page_url0, comic_url0, filename_base, message0
+    return page_url0, comic_url0, message0
+
+
+def get_kingdom_data(comic, hyphenated_date0, session0):
+    # https://comicskingdom.com/hagar-the-horrible/2022-04-24
+    page_url0 = f'https://comicskingdom.com/{comic}/{hyphenated_date0}'
+    page_html = session0.get(page_url0).html
+    try:
+        img_element = page_html.find('img#theComicImage')[0]
+        comic_url0 = img_element.attrs['src']
+        message0 = ''
+    except IndexError as e:
+        comic_url0 = None
+        message0 = f'{page_url0} {str(e)}'
+    return page_url0, comic_url0, message0
 
 
 def get_subtype_and_extension(http_headers):
@@ -85,11 +104,12 @@ def download(url, session0, page_url0, filename_base):
     buffer0.write(response.content)
     filename0 = f'{filename_base}.{extension}'
     if options.verbose:
-        print("Saved", url)
+        print("Stored", url)
     return buffer0, subtype0, filename0, ''
 
 
-def send_mail(data0, date_string):
+def send_mail(data0, specified_date):
+    date_string = specified_date.strftime('%Y-%m-%d')
     mail = EmailMessage()
     mail.set_charset('utf-8')
     mail['To'] = ','.join(config['mail_to'])
@@ -136,20 +156,17 @@ options = oparser.parse_args()
 with open(options.config_file, 'r') as f:
     config = json.load(f)
 
-# TODO option for date
+# TODO option for date other than today
 
 session = requests_html.HTMLSession()
 today = date.today()
-hyphenated_date = today.strftime('%Y-%m-%d')
-slashed_date = today.strftime('%Y/%m/%d')
 
 data = []
 
 for comic_name, site in config['comics']:
     if options.verbose:
         print(comic_name, site)
-    buffer, subtype, filename, message = get_comic(site, comic_name, slashed_date,
-                                                   hyphenated_date, session)
+    buffer, subtype, filename, message = get_comic(site, comic_name, today, session)
     data.append((buffer, subtype, filename, message))
 
-send_mail(data, hyphenated_date)
+send_mail(data, today)
