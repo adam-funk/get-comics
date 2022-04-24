@@ -21,5 +21,5 @@ JSON object with the following keys
         (use `dilbert` as the comic name)
       * `kingdom`, e.g., https://comicskingdom.com/hagar-the-horrible/2022-04-24
         (use `hagar-the-horrible` as the comic name)
-* `mail_to`: list of e-mail addresses
+* `mail_to`: list of one or more e-mail addresses
 * `mail_from`: one e-mail address
