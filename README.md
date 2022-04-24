@@ -15,6 +15,11 @@ JSON object with the following keys
     * for each comic, the first item is the comic 
       name copied exactly from the URL, and 
     * the second is one of the supported site types, currently
-      `gocomics`, `dilbert`, or `kingdom`
+      * `gocomics` e.g., https://www.gocomics.com/adamathome/2020/10/08 
+        (use `adamathome` as the comic name in the config)
+      * `dilbert`, e.g., https://dilbert.com/strip/2020-12-21
+        (use `dilbert` as the comic name)
+      * `kingdom`, e.g., https://comicskingdom.com/hagar-the-horrible/2022-04-24
+        (use `hagar-the-horrible` as the comic name)
 * `mail_to`: list of e-mail addresses
 * `mail_from`: one e-mail address
