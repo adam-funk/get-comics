@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
 
 import argparse
-import imghdr
 import json
-import os
 import re
 import smtplib
-import tempfile
 from datetime import date
 from email.message import EmailMessage
 from io import BytesIO
@@ -22,12 +19,20 @@ converter = {'gif': 'gif',
 
 def get_comic(site0, comic, slashed_date0, hyphenated_date0, session0):
     if site0 == 'gocomics':
-        return get_go_comics_url(comic, slashed_date0, hyphenated_date0, session0)
-    if site0 == 'dilbert':
-        return get_dilbert_url(comic, hyphenated_date0, session0)
+        page_url0, comic_url0, filename_base, message0 = get_go_comics_url(comic, slashed_date0, hyphenated_date0, session0)
+    elif site0 == 'dilbert':
+        page_url0, comic_url0, filename_base, message0 = get_dilbert_url(comic, hyphenated_date0, session0)
+    else:
+        if options.verbose:
+            print(f'invalid site: {site0}')
+        page_url0, comic_url0, filename_base = None, None, None
+        message0 = f'invalid site: {site0}'
     if options.verbose:
-        print('invalid site:', site0)
-    return None, None, None
+        print(page_url0, comic_url0, sep='\n')
+    if comic_url0:
+        return download(comic_url0, session0, page_url0, filename_base)
+        # output: buffer, subtype, filename, message
+    return None, None, None, message0
 
 
 def get_go_comics_url(comic, slashed_date0, hyphenated_date0, session0):
@@ -37,11 +42,13 @@ def get_go_comics_url(comic, slashed_date0, hyphenated_date0, session0):
     try:
         div_comic = page_html.find('div.comic')[0]
         comic_url0 = div_comic.attrs['data-image']
-        filename0 = 'gocomics-%s-%s' % (comic, hyphenated_date0)
+        filename_base = f'{comic}-{hyphenated_date0}'
+        message0 = ''
     except IndexError as e:
         comic_url0 = None
-        filename0 = None
-    return page_url0, comic_url0, filename0
+        filename_base = None
+        message0 = f'{page_url0} {str(e)}'
+    return page_url0, comic_url0, filename_base, message0
 
 
 def get_dilbert_url(comic, hyphenated_date0, session0):
@@ -51,39 +58,35 @@ def get_dilbert_url(comic, hyphenated_date0, session0):
     try:
         img_comic = page_html.find('img.img-responsive')[0]
         comic_url0 = img_comic.attrs['src']
-        filename0 = 'dilbert-%s-%s' % (comic, hyphenated_date0)
+        filename_base = f'{comic}-{hyphenated_date0}'
+        message0 = ''
     except IndexError as e:
         comic_url0 = None
-        filename0 = None
-    return page_url0, comic_url0, filename0
+        filename_base = None
+        message0 = f'{page_url0} {str(e)}'
+    return page_url0, comic_url0, filename_base, message0
 
 
-def filename_extension(http_headers):
-    try:
-        mimetype = http_headers['Content-Type']
-        image_type = mime_split.match(mimetype)
-        if image_type:
-            image_str = image_type.group(1)
-            result = converter.get(image_str, image_str)
-        else:
-            result = 'oops'
-    except KeyError:
-        result = 'dat'
-    return result
+def get_subtype_and_extension(http_headers):
+    mimetype = http_headers['Content-Type']
+    image_type = mime_split.match(mimetype)
+    if image_type:
+        subtype0 = image_type.group(1)
+        extension = converter.get(subtype0, subtype0)
+    else:
+        subtype0, extension = 'oops', 'oops'
+    return subtype0, extension
 
 
-# https://stackoverflow.com/questions/7243750/download-file-from-web-in-python-3
-def download(url, session0, page_url0, options0):
-    # TODO determine mime type of binary
-    #      and set filename extension appropriately
-    # TODO remove site from filename
+def download(url, session0, page_url0, filename_base):
     response = session0.get(url, headers={'Referer': page_url0})
-    subtype = filename_extension(response.headers)
+    subtype0, extension = get_subtype_and_extension(response.headers)
     buffer0 = BytesIO()
     buffer0.write(response.content)
-    if options0.verbose:
+    filename0 = f'{filename_base}.{extension}'
+    if options.verbose:
         print("Saved", url)
-    return buffer0, subtype
+    return buffer0, subtype0, filename0, ''
 
 
 def send_mail(data0, date_string):
@@ -96,12 +99,15 @@ def send_mail(data0, date_string):
     text = []
 
     # https://docs.python.org/3/library/email.examples.html
-    for filename0, buffer0, subtype0 in data0:
-        buffer0.seek(0)
-        img_data = buffer0.read()
-        mail.add_attachment(img_data, maintype='image',
-                            filename=filename0,
-                            subtype=imghdr.what(None, img_data))
+    for buffer0, subtype0, filename0, message0 in data0:
+        if filename0:
+            buffer0.seek(0)
+            img_data = buffer0.read()
+            mail.add_attachment(img_data, maintype='image',
+                                filename=filename0,
+                                subtype=subtype0)
+        else:
+            text.append(message0)
 
     mail.add_attachment('\n'.join(text).encode('utf-8'),
                         maintype='text', subtype='plain',
@@ -110,7 +116,7 @@ def send_mail(data0, date_string):
     with smtplib.SMTP('localhost') as s:
         s.send_message(mail)
     return
-    
+
 
 oparser = argparse.ArgumentParser(description="Comic fetcher",
                                   formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -132,32 +138,18 @@ with open(options.config_file, 'r') as f:
 
 # TODO option for date
 
-user_agent = requests_html.user_agent()
-headers = {'user-agent': user_agent}
-if options.verbose:
-    print('request headers:', headers)
-# TODO use this
-
 session = requests_html.HTMLSession()
 today = date.today()
 hyphenated_date = today.strftime('%Y-%m-%d')
 slashed_date = today.strftime('%Y/%m/%d')
-dir_prefix = 'comics--%s--' % hyphenated_date
-out_dir = tempfile.mkdtemp(prefix=dir_prefix)
 
 data = []
 
 for comic_name, site in config['comics']:
     if options.verbose:
         print(comic_name, site)
-    page_url, comic_url, filename = get_comic(site, comic_name, slashed_date,
-                                              hyphenated_date, session)
-    if options.verbose:
-        print(page_url, comic_url, sep='\n')
-    if comic_url:
-        buffer, subtype = download(comic_url, session, page_url, options)
-        data.append((filename, buffer, subtype))
-    else:
-        data.append(('error', None, None))
+    buffer, subtype, filename, message = get_comic(site, comic_name, slashed_date,
+                                                   hyphenated_date, session)
+    data.append((buffer, subtype, filename, message))
 
 send_mail(data, hyphenated_date)
