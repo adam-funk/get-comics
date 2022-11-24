@@ -26,7 +26,7 @@ def get_comic(site0, comic, specified_date, session0):
         page_url0, comic_url0, message0 = get_go_comics_data(comic, slashed_date,
                                                              session0)
     elif site0 == 'dilbert':
-        page_url0, comic_url0, message0 = get_dilbert_data(comic, hyphenated_date,
+        page_url0, comic_url0, message0 = get_dilbert_data(hyphenated_date,
                                                            session0)
     elif site0 == 'kingdom':
         page_url0, comic_url0, message0 = get_kingdom_data(comic, hyphenated_date,
@@ -58,7 +58,7 @@ def get_go_comics_data(comic, slashed_date0, session0):
     return page_url0, comic_url0, message0
 
 
-def get_dilbert_data(comic, hyphenated_date0, session0):
+def get_dilbert_data(hyphenated_date0, session0):
     # https://dilbert.com/strip/2020-12-21
     page_url0 = f'https://dilbert.com/strip/{hyphenated_date0}'
     page_html = session0.get(page_url0).html
@@ -108,12 +108,12 @@ def download(url, session0, page_url0, filename_base):
     return buffer0, subtype0, filename0, ''
 
 
-def send_mail(data0, specified_date):
-    date_string = specified_date.strftime('%Y-%m-%d')
+def send_mail(data0, specified_date, config0):
     mail = EmailMessage()
     mail.set_charset('utf-8')
-    mail['To'] = ','.join(config['mail_to'])
-    mail['From'] = config['mail_from']
+    mail['To'] = ','.join(config0['mail_to'])
+    mail['From'] = config0['mail_from']
+    date_string = specified_date.strftime('%Y-%m-%d')
     mail['Subject'] = f'Comics {date_string}'
 
     text = []
@@ -162,8 +162,6 @@ options = oparser.parse_args()
 with open(options.config_file, 'r') as f:
     config = json.load(f)
 
-# TODO option for date other than today
-
 session = requests_html.HTMLSession()
 fetch_date = date.today() - timedelta(days=options.back_days)
 
@@ -175,4 +173,4 @@ for comic_name, site in config['comics']:
     buffer, subtype, filename, message = get_comic(site, comic_name, fetch_date, session)
     data.append((buffer, subtype, filename, message))
 
-send_mail(data, fetch_date)
+send_mail(data, fetch_date, config)
