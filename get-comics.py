@@ -4,7 +4,7 @@ import argparse
 import json
 import re
 import smtplib
-from datetime import date
+from datetime import date, timedelta
 from email.message import EmailMessage
 from io import BytesIO
 
@@ -146,6 +146,12 @@ oparser.add_argument('-c', dest='config_file',
                      metavar='JSON',
                      help='config file')
 
+oparser.add_argument('-b', dest='back_days',
+                     default=0,
+                     type=int,
+                     metavar='N',
+                     help='fetch from N days before today')
+
 oparser.add_argument("-v", dest="verbose",
                      default=False,
                      action='store_true',
@@ -159,14 +165,14 @@ with open(options.config_file, 'r') as f:
 # TODO option for date other than today
 
 session = requests_html.HTMLSession()
-today = date.today()
+fetch_date = date.today() - timedelta(days=options.back_days)
 
 data = []
 
 for comic_name, site in config['comics']:
     if options.verbose:
         print(comic_name, site)
-    buffer, subtype, filename, message = get_comic(site, comic_name, today, session)
+    buffer, subtype, filename, message = get_comic(site, comic_name, fetch_date, session)
     data.append((buffer, subtype, filename, message))
 
-send_mail(data, today)
+send_mail(data, fetch_date)
