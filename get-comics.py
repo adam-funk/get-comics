@@ -25,9 +25,6 @@ def get_comic(site0, comic, specified_date, session0):
     if site0 == 'gocomics':
         page_url0, comic_url0, message0 = get_go_comics_data(comic, slashed_date,
                                                              session0)
-    elif site0 == 'dilbert':
-        page_url0, comic_url0, message0 = get_dilbert_data(hyphenated_date,
-                                                           session0)
     elif site0 == 'kingdom':
         page_url0, comic_url0, message0 = get_kingdom_data(comic, hyphenated_date,
                                                            session0)
@@ -59,7 +56,6 @@ def get_go_comics_data(comic, slashed_date0, session0):
 
 
 def get_dilbert_data(hyphenated_date0, session0):
-    # https://dilbert.com/strip/2020-12-21
     page_url0 = f'https://dilbert.com/strip/{hyphenated_date0}'
     page_html = session0.get(page_url0).html
     try:
