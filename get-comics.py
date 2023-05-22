@@ -25,6 +25,9 @@ def get_comic(site0, comic, specified_date, session0):
     if site0 == 'gocomics':
         page_url0, comic_url0, message0 = get_go_comics_data(comic, slashed_date,
                                                              session0)
+    elif site0 == 'farside':
+        page_url0, comic_url0, message0 = get_farside_data(hyphenated_date,
+                                                           session0)
     elif site0 == 'kingdom':
         page_url0, comic_url0, message0 = get_kingdom_data(comic, hyphenated_date,
                                                            session0)
@@ -55,11 +58,11 @@ def get_go_comics_data(comic, slashed_date0, session0):
     return page_url0, comic_url0, message0
 
 
-def get_dilbert_data(hyphenated_date0, session0):
-    page_url0 = f'https://dilbert.com/strip/{hyphenated_date0}'
+def get_farside_data(hyphenated_date0, session0):
+    page_url0 = f'https://www.thefarside.com/'
     page_html = session0.get(page_url0).html
     try:
-        img_comic = page_html.find('img.img-responsive')[0]
+        img_comic = page_html.find('div.tfs-content__1col img')[0]
         comic_url0 = img_comic.attrs['src']
         message0 = ''
     except IndexError as e:
