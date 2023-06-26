@@ -4,6 +4,7 @@ import argparse
 import json
 import re
 import smtplib
+import subprocess
 from datetime import date, timedelta
 from email.message import EmailMessage
 from io import BytesIO
@@ -15,6 +16,8 @@ mime_split = re.compile(r'image/(\w+).*')
 converter = {'gif': 'gif',
              'jpeg': 'jpg'
              }
+
+SENDMAIL = ["/usr/sbin/sendmail", "-t", "-oi"]
 
 
 def get_comic(site0, comic, specified_date, session0):
@@ -129,8 +132,7 @@ def send_mail(data0, specified_date, config0):
                         maintype='text', subtype='plain',
                         disposition='inline')
 
-    with smtplib.SMTP('localhost') as s:
-        s.send_message(mail)
+    subprocess.run(SENDMAIL, input=mail.as_bytes())
     return
 
 
