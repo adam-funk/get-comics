@@ -3,7 +3,6 @@
 import argparse
 import json
 import re
-import smtplib
 import subprocess
 from datetime import date, timedelta
 from email.message import EmailMessage
