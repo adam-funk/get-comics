@@ -65,7 +65,7 @@ def get_farside_data(hyphenated_date0, session0):
     page_html = session0.get(page_url0).html
     try:
         img_comic = page_html.find('div.tfs-content__1col img')[0]
-        comic_url0 = img_comic.attrs['src']
+        comic_url0 = img_comic.attrs['data-src']
         message0 = ''
     except IndexError as e:
         comic_url0 = None
@@ -89,6 +89,9 @@ def get_kingdom_data(comic, hyphenated_date0, session0):
 
 def get_subtype_and_extension(http_headers):
     mimetype = http_headers['Content-Type']
+    # farside special handling
+    if mimetype.startswith('application/atom+xml'):
+        return 'jpeg', 'jpg'
     image_type = mime_split.match(mimetype)
     if image_type:
         subtype0 = image_type.group(1)
@@ -105,7 +108,7 @@ def download(url, session0, page_url0, filename_base):
     buffer0.write(response.content)
     filename0 = f'{filename_base}.{extension}'
     if options.verbose:
-        print("Stored", url)
+        print(f'Stored {url} as {subtype0} {extension}')
     return buffer0, subtype0, filename0, ''
 
 
