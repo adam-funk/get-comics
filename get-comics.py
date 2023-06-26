@@ -58,19 +58,6 @@ def get_go_comics_data(comic, slashed_date0, session0):
     return page_url0, comic_url0, message0
 
 
-def get_dilbert_data(hyphenated_date0, session0):
-    page_url0 = f'https://dilbert.com/strip/{hyphenated_date0}'
-    page_html = session0.get(page_url0).html
-    try:
-        img_comic = page_html.find('img.img-responsive')[0]
-        comic_url0 = img_comic.attrs['src']
-        message0 = ''
-    except IndexError as e:
-        comic_url0 = None
-        message0 = f'{page_url0} {str(e)}'
-    return page_url0, comic_url0, message0
-
-
 def get_kingdom_data(comic, hyphenated_date0, session0):
     # https://comicskingdom.com/hagar-the-horrible/2022-04-24
     page_url0 = f'https://comicskingdom.com/{comic}/{hyphenated_date0}'
