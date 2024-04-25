@@ -24,14 +24,15 @@ SENDMAIL = ["/usr/sbin/sendmail", "-t", "-oi"]
 def add_comic(mail0: EmailMessage, site0: str, comic: str, specified_date, session0: requests_html.HTMLSession):
     hyphenated_date = specified_date.strftime('%Y-%m-%d')
     filename_base = f'{comic}-{hyphenated_date}'
+    text_lines = []
     if site0 == 'gocomics':
-        page_url0, comic_url0, message0 = get_go_comics_data(comic, specified_date,
-                                                             session0)
+        page_url0, comic_url0, message = get_go_comics_data(comic, specified_date,
+                                                            session0)
     else:
         if options.verbose:
             print(f'invalid site: {site0}')
-        page_url0, comic_url0 = None, None
-        message0 = f'invalid site: {site0}'
+        page_url0, comic_url0 = '', None
+        message = f'invalid site: {site0}'
     if options.verbose:
         print(page_url0, comic_url0, sep='\n')
     if comic_url0:
@@ -39,8 +40,10 @@ def add_comic(mail0: EmailMessage, site0: str, comic: str, specified_date, sessi
         # output: buffer, subtype, filename
         add_image(mail0, buffer, filename, subtype)
     if page_url0:
-        add_text(mail0, page_url0)
-    add_text(mail0, message0)
+        text_lines.append(page_url0)
+    if message:
+        text_lines.append(message)
+    add_text(mail0, '\n'.join(text_lines))
     return
 
 
@@ -49,15 +52,16 @@ def get_go_comics_data(comic: str, specified_date: datetime.date,
     # https://www.gocomics.com/adamathome/2020/10/08
     slashed_date = specified_date.strftime('%Y/%m/%d')
     page_url0 = f'https://www.gocomics.com/{comic}/{slashed_date}'
-    page_html = session0.get(page_url0).html
+    response = session0.get(page_url0)
+    page_html = response.html
     try:
         div_comic = page_html.find('div.comic')[0]
         comic_url0 = div_comic.attrs['data-image']
-        message0 = ''
+        message = ''
     except IndexError as e:
         comic_url0 = None
-        message0 = f'{page_url0} {str(e)}'
-    return page_url0, comic_url0, message0
+        message = str(e)
+    return page_url0, comic_url0, message
 
 
 def get_kingdom_data(comic, hyphenated_date: str,
@@ -86,7 +90,7 @@ def get_subtype_and_extension(http_headers):
     return subtype0, extension
 
 
-def download(url: str, session0: requests_html.BaseSession, page_url0: str, filename_base: str)\
+def download(url: str, session0: requests_html.BaseSession, page_url0: str, filename_base: str) \
         -> Tuple[BytesIO, str, str]:
     response = session0.get(url, headers={'Referer': page_url0})
     subtype0, extension = get_subtype_and_extension(response.headers)
