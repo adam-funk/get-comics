@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 
 import argparse
+import datetime
 import json
 import re
 import subprocess
 from datetime import date, timedelta
 from email.message import EmailMessage
 from io import BytesIO
+from typing import Tuple
 
 import requests_html
 
@@ -19,17 +21,12 @@ converter = {'gif': 'gif',
 SENDMAIL = ["/usr/sbin/sendmail", "-t", "-oi"]
 
 
-def get_comic(site0, comic, specified_date, session0):
+def add_comic(mail0: EmailMessage, site0: str, comic:str, specified_date, session0: requests_html.BaseSession):
     hyphenated_date = specified_date.strftime('%Y-%m-%d')
-    slashed_date = specified_date.strftime('%Y/%m/%d')
     filename_base = f'{comic}-{hyphenated_date}'
-
     if site0 == 'gocomics':
-        page_url0, comic_url0, message0 = get_go_comics_data(comic, slashed_date,
+        page_url0, comic_url0, message0 = get_go_comics_data(comic, specified_date,
                                                              session0)
-    elif site0 == 'kingdom':
-        page_url0, comic_url0, message0 = get_kingdom_data(comic, hyphenated_date,
-                                                           session0)
     else:
         if options.verbose:
             print(f'invalid site: {site0}')
@@ -38,14 +35,20 @@ def get_comic(site0, comic, specified_date, session0):
     if options.verbose:
         print(page_url0, comic_url0, sep='\n')
     if comic_url0:
-        return download(comic_url0, session0, page_url0, filename_base)
-        # output: buffer, subtype, filename, message
-    return None, None, None, message0
+        buffer, subtype, filename = download(comic_url0, session0, page_url0, filename_base)
+        # output: buffer, subtype, filename
+        add_image(mail0, buffer, filename, subtype)
+    if page_url0:
+        add_text(mail0, page_url0)
+    add_text(mail0, message0)
+    return
 
 
-def get_go_comics_data(comic, slashed_date0, session0):
+def get_go_comics_data(comic: str, specified_date: datetime.date, session0: requests_html.BaseSession)\
+        -> Tuple[str, str, str]:
     # 'https://www.gocomics.com/adamathome/2020/10/08'
-    page_url0 = f'https://www.gocomics.com/{comic}/{slashed_date0}'
+    slashed_date = specified_date.strftime('%Y/%m/%d')
+    page_url0 = f'https://www.gocomics.com/{comic}/{slashed_date}'
     page_html = session0.get(page_url0).html
     try:
         div_comic = page_html.find('div.comic')[0]
@@ -57,9 +60,10 @@ def get_go_comics_data(comic, slashed_date0, session0):
     return page_url0, comic_url0, message0
 
 
-def get_kingdom_data(comic, hyphenated_date0, session0):
+def get_kingdom_data(comic, hyphenated_date: str, session0)\
+        -> Tuple[str, str, str]:
     # https://comicskingdom.com/hagar-the-horrible/2022-04-24
-    page_url0 = f'https://comicskingdom.com/{comic}/{hyphenated_date0}'
+    page_url0 = f'https://comicskingdom.com/{comic}/{hyphenated_date}'
     page_html = session0.get(page_url0).html
     try:
         img_element = page_html.find('img#theComicImage')[0]
@@ -82,7 +86,7 @@ def get_subtype_and_extension(http_headers):
     return subtype0, extension
 
 
-def download(url, session0, page_url0, filename_base):
+def download(url: str, session0: requests_html.BaseSession, page_url0: str, filename_base: str):
     response = session0.get(url, headers={'Referer': page_url0})
     subtype0, extension = get_subtype_and_extension(response.headers)
     buffer0 = BytesIO()
@@ -90,35 +94,37 @@ def download(url, session0, page_url0, filename_base):
     filename0 = f'{filename_base}.{extension}'
     if options.verbose:
         print("Stored", url)
-    return buffer0, subtype0, filename0, ''
+    return buffer0, subtype0, filename0
 
 
-def send_mail(data0, specified_date, config0):
-    mail = EmailMessage()
-    mail.set_charset('utf-8')
-    mail['To'] = ','.join(config0['mail_to'])
-    mail['From'] = config0['mail_from']
+def construct_mail(specified_date: datetime.date, config0: dict) -> EmailMessage:
+    mail0 = EmailMessage()
+    mail0.set_charset('utf-8')
+    mail0['To'] = ','.join(config0['mail_to'])
+    mail0['From'] = config0['mail_from']
     date_string = specified_date.strftime('%Y-%m-%d')
-    mail['Subject'] = f'Comics {date_string}'
+    mail0['Subject'] = f'Comics {date_string}'
+    return mail0
 
-    text = []
 
-    # https://docs.python.org/3/library/email.examples.html
-    for buffer0, subtype0, filename0, message0 in data0:
-        if filename0:
-            buffer0.seek(0)
-            img_data = buffer0.read()
-            mail.add_attachment(img_data, maintype='image',
-                                filename=filename0,
-                                subtype=subtype0)
-        else:
-            text.append(message0)
+def add_image(mail0: EmailMessage, buffer0, filename0, subtype0):
+    buffer0.seek(0)
+    img_data = buffer0.read()
+    mail0.add_attachment(img_data, maintype='image',
+                         filename=filename0,
+                         subtype=subtype0)
+    return mail0
 
-    mail.add_attachment('\n'.join(text).encode('utf-8'),
-                        maintype='text', subtype='plain',
-                        disposition='inline')
 
-    subprocess.run(SENDMAIL, input=mail.as_bytes())
+def add_text(mail0: EmailMessage, text: str):
+    mail0.add_attachment(text.encode('utf-8'),
+                         maintype='text', subtype='plain',
+                         disposition='inline')
+    return mail0
+
+
+def send_mail(mail0: EmailMessage):
+    subprocess.run(SENDMAIL, input=mail0.as_bytes())
     return
 
 
@@ -149,12 +155,11 @@ with open(options.config_file, 'r') as f:
 session = requests_html.HTMLSession()
 fetch_date = date.today() - timedelta(days=options.back_days)
 
-data = []
+mail = construct_mail(fetch_date, config)
 
 for comic_name, site in config['comics']:
     if options.verbose:
         print(comic_name, site)
-    buffer, subtype, filename, message = get_comic(site, comic_name, fetch_date, session)
-    data.append((buffer, subtype, filename, message))
+    add_comic(mail, site, comic_name, fetch_date, session)
 
-send_mail(data, fetch_date, config)
+send_mail(mail)
