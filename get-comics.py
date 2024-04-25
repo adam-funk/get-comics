@@ -21,7 +21,7 @@ converter = {'gif': 'gif',
 SENDMAIL = ["/usr/sbin/sendmail", "-t", "-oi"]
 
 
-def add_comic(mail0: EmailMessage, site0: str, comic:str, specified_date, session0: requests_html.BaseSession):
+def add_comic(mail0: EmailMessage, site0: str, comic: str, specified_date, session0: requests_html.HTMLSession):
     hyphenated_date = specified_date.strftime('%Y-%m-%d')
     filename_base = f'{comic}-{hyphenated_date}'
     if site0 == 'gocomics':
@@ -44,9 +44,9 @@ def add_comic(mail0: EmailMessage, site0: str, comic:str, specified_date, sessio
     return
 
 
-def get_go_comics_data(comic: str, specified_date: datetime.date, session0: requests_html.BaseSession)\
-        -> Tuple[str, str, str]:
-    # 'https://www.gocomics.com/adamathome/2020/10/08'
+def get_go_comics_data(comic: str, specified_date: datetime.date,
+                       session0: requests_html.HTMLSession) -> Tuple[str, str, str]:
+    # https://www.gocomics.com/adamathome/2020/10/08
     slashed_date = specified_date.strftime('%Y/%m/%d')
     page_url0 = f'https://www.gocomics.com/{comic}/{slashed_date}'
     page_html = session0.get(page_url0).html
@@ -60,8 +60,8 @@ def get_go_comics_data(comic: str, specified_date: datetime.date, session0: requ
     return page_url0, comic_url0, message0
 
 
-def get_kingdom_data(comic, hyphenated_date: str, session0)\
-        -> Tuple[str, str, str]:
+def get_kingdom_data(comic, hyphenated_date: str,
+                     session0: requests_html.HTMLSession) -> Tuple[str, str, str]:
     # https://comicskingdom.com/hagar-the-horrible/2022-04-24
     page_url0 = f'https://comicskingdom.com/{comic}/{hyphenated_date}'
     page_html = session0.get(page_url0).html
@@ -86,7 +86,8 @@ def get_subtype_and_extension(http_headers):
     return subtype0, extension
 
 
-def download(url: str, session0: requests_html.BaseSession, page_url0: str, filename_base: str):
+def download(url: str, session0: requests_html.BaseSession, page_url0: str, filename_base: str)\
+        -> Tuple[BytesIO, str, str]:
     response = session0.get(url, headers={'Referer': page_url0})
     subtype0, extension = get_subtype_and_extension(response.headers)
     buffer0 = BytesIO()
@@ -97,7 +98,7 @@ def download(url: str, session0: requests_html.BaseSession, page_url0: str, file
     return buffer0, subtype0, filename0
 
 
-def construct_mail(specified_date: datetime.date, config0: dict) -> EmailMessage:
+def create_mail(specified_date: datetime.date, config0: dict) -> EmailMessage:
     mail0 = EmailMessage()
     mail0.set_charset('utf-8')
     mail0['To'] = ','.join(config0['mail_to'])
@@ -107,20 +108,20 @@ def construct_mail(specified_date: datetime.date, config0: dict) -> EmailMessage
     return mail0
 
 
-def add_image(mail0: EmailMessage, buffer0, filename0, subtype0):
+def add_image(mail0: EmailMessage, buffer0: BytesIO, filename0: str, subtype0: str):
     buffer0.seek(0)
     img_data = buffer0.read()
     mail0.add_attachment(img_data, maintype='image',
                          filename=filename0,
                          subtype=subtype0)
-    return mail0
+    return
 
 
 def add_text(mail0: EmailMessage, text: str):
     mail0.add_attachment(text.encode('utf-8'),
                          maintype='text', subtype='plain',
                          disposition='inline')
-    return mail0
+    return
 
 
 def send_mail(mail0: EmailMessage):
@@ -155,7 +156,7 @@ with open(options.config_file, 'r') as f:
 session = requests_html.HTMLSession()
 fetch_date = date.today() - timedelta(days=options.back_days)
 
-mail = construct_mail(fetch_date, config)
+mail = create_mail(fetch_date, config)
 
 for comic_name, site in config['comics']:
     if options.verbose:
