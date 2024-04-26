@@ -52,8 +52,7 @@ def get_go_comics_data(comic: str, specified_date: datetime.date,
     # https://www.gocomics.com/adamathome/2020/10/08
     slashed_date = specified_date.strftime('%Y/%m/%d')
     page_url0 = f'https://www.gocomics.com/{comic}/{slashed_date}'
-    response = session0.get(page_url0)
-    page_html = response.html
+    page_html = session0.get(page_url0).html
     try:
         div_comic = page_html.find('div.comic')[0]
         comic_url0 = div_comic.attrs['data-image']
