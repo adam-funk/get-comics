@@ -27,7 +27,7 @@ def add_comic(mail0: EmailMessage, site0: str, comic: str, specified_date, sessi
     text_lines = []
     if site0 == 'gocomics':
         page_url0, comic_url0, message = get_go_comics_data(comic, specified_date,
-                                                            session0)
+                                                            session0, options.verbose)
     else:
         if options.verbose:
             print(f'invalid site: {site0}')
@@ -48,14 +48,21 @@ def add_comic(mail0: EmailMessage, site0: str, comic: str, specified_date, sessi
 
 
 def get_go_comics_data(comic: str, specified_date: datetime.date,
-                       session0: requests_html.HTMLSession) -> Tuple[str, str, str]:
+                       session0: requests_html.HTMLSession, verbose: bool) -> Tuple[str, str, str]:
     # https://www.gocomics.com/adamathome/2020/10/08
     slashed_date = specified_date.strftime('%Y/%m/%d')
     page_url0 = f'https://www.gocomics.com/{comic}/{slashed_date}'
     page_html = session0.get(page_url0).html
     try:
-        div_comic = page_html.find('div.comic')[0]
-        comic_url0 = div_comic.attrs['data-image']
+        div_comic = page_html.find('picture.item-comic-image')[0]
+        if verbose:
+            print(div_comic)
+        img = div_comic.find('img')[0]
+        if verbose:
+            print(img)
+        comic_url0 = img.attrs['src']
+        if verbose:
+            print(comic_url0)
         message = ''
     except IndexError as e:
         comic_url0 = None
