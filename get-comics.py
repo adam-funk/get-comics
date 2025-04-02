@@ -54,10 +54,7 @@ def get_go_comics_data(comic: str, specified_date: datetime.date,
     page_url0 = f'https://www.gocomics.com/{comic}/{slashed_date}'
     page_html = session0.get(page_url0).html
     try:
-        div_comic = page_html.find('picture.item-comic-image')[0]
-        if verbose:
-            print(div_comic)
-        img = div_comic.find('img')[0]
+        img = page_html.find('.ShowComicViewer_showComicViewer__xXyN2 img', first=True)
         if verbose:
             print(img)
         comic_url0 = img.attrs['src']
