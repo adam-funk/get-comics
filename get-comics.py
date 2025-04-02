@@ -53,17 +53,17 @@ def get_go_comics_data(comic: str, specified_date: datetime.date,
     slashed_date = specified_date.strftime('%Y/%m/%d')
     page_url0 = f'https://www.gocomics.com/{comic}/{slashed_date}'
     page_html = session0.get(page_url0).html
-    try:
-        img = page_html.find('.ShowComicViewer_showComicViewer__xXyN2 img', first=True)
-        if verbose:
-            print(img)
+    img = page_html.find('img.Comic_comic__image__6e_Fw', first=True)
+    if verbose:
+        print(img)
+    if img:
         comic_url0 = img.attrs['src']
         if verbose:
             print(comic_url0)
         message = ''
-    except IndexError as e:
+    else:
         comic_url0 = None
-        message = str(e)
+        message = 'not found!'
     return page_url0, comic_url0, message
 
 
