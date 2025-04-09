@@ -53,15 +53,15 @@ def get_go_comics_data(comic: str, specified_date: datetime.date,
     slashed_date = specified_date.strftime('%Y/%m/%d')
     page_url0 = f'https://www.gocomics.com/{comic}/{slashed_date}'
     page_html = session0.get(page_url0).html
-    img = page_html.find('img.yarl__slide_image', first=True)
-    if verbose:
-        print(img)
-    if img:
+    try:
+        img = page_html.find('section')[1].find('img')[0]
+        if verbose:
+            print(img)
         comic_url0 = img.attrs['src']
         if verbose:
             print(comic_url0)
         message = ''
-    else:
+    except (AttributeError, IndexError):
         comic_url0 = None
         message = 'not found!'
     return page_url0, comic_url0, message
