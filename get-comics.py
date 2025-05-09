@@ -53,8 +53,10 @@ def get_go_comics_data(comic: str, specified_date: datetime.date,
     slashed_date = specified_date.strftime('%Y/%m/%d')
     page_url0 = f'https://www.gocomics.com/{comic}/{slashed_date}'
     page_html = session0.get(page_url0).html
+    # https://www.w3schools.com/cssref/css_selectors.php
+    # '[class^=ShowComicViewer_showComicViewer]'
     try:
-        img = page_html.find('section')[1].find('img')[0]
+        img = page_html.find('[class^=Comic_comic__]')[0].find('img')[0]
         if verbose:
             print(img)
         comic_url0 = img.attrs['src']
