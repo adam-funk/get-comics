@@ -11,6 +11,9 @@ from io import BytesIO
 from typing import Tuple
 
 import requests_html
+from bs4 import BeautifulSoup
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
 
 mime_split = re.compile(r'image/(\w+).*')
 
@@ -21,13 +24,14 @@ converter = {'gif': 'gif',
 SENDMAIL = ["/usr/sbin/sendmail", "-t", "-oi"]
 
 
-def add_comic(mail0: EmailMessage, site0: str, comic: str, specified_date, session0: requests_html.HTMLSession):
+def add_comic(mail0: EmailMessage, site0: str, comic: str, specified_date,
+              driver0: webdriver.Chrome, session0: requests_html.HTMLSession):
     hyphenated_date = specified_date.strftime('%Y-%m-%d')
     filename_base = f'{comic}-{hyphenated_date}'
     text_lines = []
     if site0 == 'gocomics':
         page_url0, comic_url0, message = get_go_comics_data(comic, specified_date,
-                                                            session0, options.verbose)
+                                                            driver0, options.verbose)
     else:
         if options.verbose:
             print(f'invalid site: {site0}')
@@ -48,15 +52,19 @@ def add_comic(mail0: EmailMessage, site0: str, comic: str, specified_date, sessi
 
 
 def get_go_comics_data(comic: str, specified_date: datetime.date,
-                       session0: requests_html.HTMLSession, verbose: bool) -> Tuple[str, str, str]:
+                       driver0: webdriver.Chrome, verbose: bool) -> Tuple[str, str, str]:
     # https://www.gocomics.com/adamathome/2020/10/08
     slashed_date = specified_date.strftime('%Y/%m/%d')
     page_url0 = f'https://www.gocomics.com/{comic}/{slashed_date}'
-    page_html = session0.get(page_url0).html
+    driver0.get(page_url0)
+    html_str = driver0.page_source
+    page_html = BeautifulSoup(html_str, 'html.parser')
     # https://www.w3schools.com/cssref/css_selectors.php
     # '[class^=ShowComicViewer_showComicViewer]'
     try:
-        img = page_html.find('[class^=Comic_comic__]')[0].find('img')[0]
+        sections = page_html.select('section[class^=ShowComicViewer_showComicViewer__]')[0]
+        imgs = sections[0].select('img')
+        img = imgs[0]
         if verbose:
             print(img)
         comic_url0 = img.attrs['src']
@@ -67,21 +75,6 @@ def get_go_comics_data(comic: str, specified_date: datetime.date,
         comic_url0 = None
         message = 'not found!'
     return page_url0, comic_url0, message
-
-
-def get_kingdom_data(comic, hyphenated_date: str,
-                     session0: requests_html.HTMLSession) -> Tuple[str, str, str]:
-    # https://comicskingdom.com/hagar-the-horrible/2022-04-24
-    page_url0 = f'https://comicskingdom.com/{comic}/{hyphenated_date}'
-    page_html = session0.get(page_url0).html
-    try:
-        img_element = page_html.find('img#theComicImage')[0]
-        comic_url0 = img_element.attrs['src']
-        message0 = ''
-    except IndexError as e:
-        comic_url0 = None
-        message0 = f'{page_url0} {str(e)}'
-    return page_url0, comic_url0, message0
 
 
 def get_subtype_and_extension(http_headers):
@@ -162,7 +155,12 @@ options = oparser.parse_args()
 with open(options.config_file, 'r') as f:
     config = json.load(f)
 
-session = requests_html.HTMLSession()
+selenium_options = Options()
+selenium_options.add_argument("--headless=new")
+driver = webdriver.Chrome(options=selenium_options)
+
+rh_session = requests_html.HTMLSession()
+
 fetch_date = date.today() - timedelta(days=options.back_days)
 
 mail = create_mail(fetch_date, config)
@@ -170,6 +168,6 @@ mail = create_mail(fetch_date, config)
 for comic_name, site in config['comics']:
     if options.verbose:
         print(comic_name, site)
-    add_comic(mail, site, comic_name, fetch_date, session)
+    add_comic(mail, site, comic_name, fetch_date, driver, rh_session)
 
 send_mail(mail)
