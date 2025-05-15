@@ -23,3 +23,24 @@ JSON object with the following keys
         (use `hagar-the-horrible` as the comic name)
 * `mail_to`: list of one or more e-mail addresses
 * `mail_from`: one e-mail address
+
+## Raspberry Pi 32 bit
+
+https://stackoverflow.com/questions/66588194/requests-html-results-in-oserror-errno-8-exec-format-error-when-calling-html
+
+https://github.com/miyakogi/pyppeteer/issues/250
+
+```bash
+$ sudo apt install chromium-codecs-ffmpeg
+
+$ sudo apt install chromium-browser
+
+$ whereis chromium-browser
+chromium-browser: /usr/bin/chromium-browser /usr/lib/chromium-browser
+
+$ cd $HOME/.local/share/pyppeteer/local-chromium/1181205/chrome-linux/
+
+$ rm -fr *
+
+$ ln -s /usr/bin/chromium-browser chrome
+```

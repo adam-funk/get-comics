@@ -59,8 +59,8 @@ def get_go_comics_data(comic: str, specified_date: datetime.date,
     # https://www.w3schools.com/cssref/css_selectors.php
     # '[class^=ShowComicViewer_showComicViewer]'
     try:
-        sections = html.select('section[class^=ShowComicViewer_showComicViewer__]')
-        imgs = sections[0].select('img')
+        sections = html.find('section[class^=ShowComicViewer_showComicViewer__]')
+        imgs = sections[0].find('img')
         img = imgs[0]
         if verbose:
             print(img)
