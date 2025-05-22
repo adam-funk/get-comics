@@ -55,7 +55,10 @@ def get_go_comics_data(comic: str, specified_date: datetime.date,
     slashed_date = specified_date.strftime('%Y/%m/%d')
     page_url0 = f'https://www.gocomics.com/{comic}/{slashed_date}'
     html = session0.get(page_url0).html
+    original_length = len(html.html)
     html.render()
+    if verbose:
+        print(f'length: {original_length} -> {len(html.html)}')
     # https://www.w3schools.com/cssref/css_selectors.php
     # '[class^=ShowComicViewer_showComicViewer]'
     try:
